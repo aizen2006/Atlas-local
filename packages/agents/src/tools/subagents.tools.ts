@@ -2,7 +2,7 @@ import { tool, run, type Tool } from "@openai/agents";
 import { SandboxAgent, compaction, filesystem, memory, shell, type Capability } from "@openai/agents/sandbox";
 import { UnixLocalSandboxClient } from "@openai/agents/sandbox/local";
 import z from "zod";
-import { models } from "@repo/config";
+import { models } from "../constants";
 import { webSearch, webScrape, agenticSearch } from "./webSearch.tools";
 
 {/*
@@ -12,6 +12,11 @@ import { webSearch, webScrape, agenticSearch } from "./webSearch.tools";
     no memory of the calling conversation, and only its final output is
     returned; its intermediate tool calls stay isolated.
 */}
+
+
+// Have to make this so that it works in window's as well 
+
+
 const SUBAGENT_TYPES = {
     general: {
         description:"Broad multi-step tasks: research, planning, drafting, or anything combining several tools.",
@@ -58,7 +63,6 @@ export const createSubAgents : Tool = tool({
     }),
     async execute({subagent_type,description,prompt}){
         const config = SUBAGENT_TYPES[subagent_type];
-
         const agent = new SandboxAgent({
             name:`${subagent_type}-subagent`,
             model:models.subagent,
@@ -66,7 +70,6 @@ export const createSubAgents : Tool = tool({
             capabilities:[...config.capabilities],
             tools:[...config.tools]
         });
-
         try {
             const result = await run(agent,prompt,{
                 sandbox:{

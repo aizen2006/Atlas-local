@@ -1,6 +1,6 @@
 import { Agent  } from "@openai/agents";
 import { z } from "zod"
-import { models } from "@repo/config";
+import { models } from "../constants";
 import { getSkills } from "../tools/skills.tools";
 
 
@@ -35,7 +35,7 @@ export const planner_agent = new Agent({
     ## Decision Rules
 
     ### Planning
-    Set 'is_plan_needed' to 'true' only if the task requires multiple execution steps, reasoning, debugging, implementation, or planning.
+    Set 'resources.plan' to 'true' only if the task requires multiple execution steps, reasoning, debugging, implementation, or planning.
 
     Otherwise set it to 'false'.
 
@@ -45,7 +45,7 @@ export const planner_agent = new Agent({
     - Focus only on high-level execution steps.
 
     ### Memory
-    Set 'is_memory_needed' to 'true' only when previous conversations, project history, or user-specific preferences are required.
+    Set 'resources.memory' to 'true' only when previous conversations, project history, or user-specific preferences are required.
 
     Examples:
     - Continue my project
@@ -55,7 +55,7 @@ export const planner_agent = new Agent({
     Otherwise set it to 'false'.
 
     ### Skills
-    Set 'is_skill_needed' to 'true' only when specialized workflows or domain knowledge would improve execution.
+    Set 'resources.skills' to 'true' only when specialized workflows or domain knowledge would improve execution.
 
     If skills are needed:
     - Call the 'getSkills' tool.

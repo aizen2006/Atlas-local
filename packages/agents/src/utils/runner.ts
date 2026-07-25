@@ -3,7 +3,7 @@ import {
     type Agent,
     type AgentOutputType,
 } from "@openai/agents";
-import "@repo/config";
+
 
 const runner = new Runner();
 

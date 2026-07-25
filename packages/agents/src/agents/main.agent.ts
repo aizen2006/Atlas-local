@@ -1,19 +1,10 @@
-import { Agent, hostedMcpTool } from '@openai/agents'
-import { models } from "@repo/config";
-import { client as pd } from "../utils/pipedream";
+import { Agent } from '@openai/agents'
+import { models } from "../constants";
 import { webSearch , webScrape ,agenticSearch } from '../tools/webSearch.tools';
-import { listToolsMCP } from '../tools/pipedream.tools';
 import { createSubAgents } from '../tools/subagents.tools';
 
-
-// pipedream config
-const gmail = await pd.apps.list({q:"gmail"});
-const appSlugGmail = gmail.data[0]?.nameSlug;
-const accessToken = await pd.rawAccessToken;
-const externalUserId = process.env.PIPEDREAM_USER_ID;
-const calender = await pd.apps.list({q:"google_calendar"});
-const appSlugCalender = calender.data[0]?.nameSlug;
-
+// Will add connector feature later on to app multiple apps mcp
+// Update the system prompt accordingly
 
 export const Atlas = new Agent({
     name:"Atlas : AI executive assistant",
@@ -41,10 +32,8 @@ export const Atlas = new Agent({
         - Use webSearch for quick web lookup and current facts.
         - Use webScrape when the user provides a URL and you need the page contents.
         - Use agenticSearch for complex research, comparisons, or synthesis across multiple sources.
-        - Use the connected Gmail and Calendar tools for email and scheduling actions.
         - Prefer the simplest tool that solves the task.
         - Do not use a more expensive or complex tool when a lighter tool is sufficient.
-        - Use listToolsMCP to list the mcp's callable actions
         - Use CreateSubAgents to delegate a complex, multi-step, or long-running piece of work to a sub-agent instead of doing it inline — pick the closest subagent_type and write a fully self-contained prompt, since the sub-agent has no memory of this conversation
 
         Work style:
@@ -73,32 +62,7 @@ export const Atlas = new Agent({
         webScrape,
         webSearch,
         agenticSearch,
-        listToolsMCP,
         createSubAgents,
-        hostedMcpTool({
-            serverLabel:'pipedream-gmail',
-            serverUrl:"https://remote.mcp.pipedream.net/v3",
-            headers:{
-                Authorization: `Bearer ${accessToken}`,
-                "x-pd-project-id": process.env.PIPEDREAM_PROJECT_ID!,
-                "x-pd-environment": process.env.PIPEDREAM_ENVIRONMENT!,
-                "x-pd-external-user-id": externalUserId!,
-                "x-pd-app-slug": appSlugGmail!,
-            },
-            requireApproval:'never'
-        }),
-        hostedMcpTool({
-            serverLabel:'pipedream-calender',
-            serverUrl:"https://remote.mcp.pipedream.net/v3",
-            headers:{
-                Authorization: `Bearer ${accessToken}`,
-                "x-pd-project-id": process.env.PIPEDREAM_PROJECT_ID!,
-                "x-pd-environment": process.env.PIPEDREAM_ENVIRONMENT!,
-                "x-pd-external-user-id": externalUserId!,
-                "x-pd-app-slug": appSlugCalender!,
-            },
-            requireApproval:'never'
-        })
     ],
     model:models.atlas,
 })

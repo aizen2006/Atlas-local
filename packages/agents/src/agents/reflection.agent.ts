@@ -1,6 +1,6 @@
 import { Agent  } from "@openai/agents";
 import { z } from "zod"
-import { models } from "@repo/config";
+import { models } from "../constants";
 
 const reflectionOutput = z.object({
     worthRemembering: z.boolean(),
