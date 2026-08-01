@@ -1,17 +1,17 @@
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { Database } from 'bun:sqlite';
 import * as sqliteVec from 'sqlite-vec';
-import { existsSync } from 'node:fs';
-import { env } from '@repo/config';
+import { existsSync, type PathLike } from 'node:fs';
 
-// env.DB_FILE_NAME is always an absolute path resolved by @repo/config, so the
-// cwd a process was launched from can no longer decide which database opens.
-// Log it (and whether it already existed) so a misconfigured path is loud
-// instead of silently creating a fresh, empty database.
-const dbExisted = existsSync(env.DB_FILE_NAME);
-console.log(`DB: ${env.DB_FILE_NAME} (${dbExisted ? "existing" : "new — will be created"})`);
+if(process.env.DB_FILE_NAME){
+    throw new Error("DB file path incorrect or missing");
+}
 
-const sqlite = new Database(env.DB_FILE_NAME);
+
+const dbExisted = existsSync(process.env.DB_FILE_NAME as PathLike );
+console.log(`DB: ${process.env.DB_FILE_NAME} (${dbExisted ? "existing" : "new — will be created"})`);
+
+const sqlite = new Database(process.env.DB_FILE_NAME);
 sqlite.loadExtension(sqliteVec.getLoadablePath());
 
 sqlite.run(`
@@ -23,7 +23,7 @@ PRAGMA foreign_keys = ON;
 sqlite.run(`
 CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
     memory_id INTEGER PRIMARY KEY,
-    embedding FLOAT[1536]
+    embedding FLOAT[1536] distance_metric=cosine
 );
 `);
 

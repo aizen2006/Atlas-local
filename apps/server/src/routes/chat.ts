@@ -3,7 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { openai } from "../libs/openai";
 import { runAgent , runAgentStream, planner_agent, Atlas, reflection_agent } from "@repo/agents";
 import { db, messages, sessions, jobs, experiences } from "@repo/memory";
-import { models } from "@repo/config";
+import { models } from "@repo/agents";
 import { eq } from "drizzle-orm";
 import { searchMemory, loadSkills, createMemory } from "../libs/utils";
 
@@ -33,7 +33,7 @@ interface Conversation {
     content:string | null
 }
 
-// what the pipeline decided for this turn — surfaced to the UI so it can show
+
 // whether Atlas planned, recalled memory, or loaded skills.
 interface PipelineSummary {
     planned: boolean,
@@ -74,9 +74,6 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
     // store's the user's message
     await db.insert(messages).values({sessionId,role:"user",content:query});
 
-    // the prompt template is filled by a single render() at the end. Every
-    // placeholder gets a default here, so an unused section reads as an
-    // explicit "none" instead of leaking a raw {{plan}} into the model.
     const promptTemplate = `
     UserQuery:{{query}}
 
@@ -93,8 +90,6 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
         plan: "No plan was required.",
         memory: "No relevant memory found.",
         skills: "No relevant skills found.",
-        // conversations is an array of rows; interpolating it directly
-        // renders "[object Object]", so serialize each turn explicitly.
         conversation: conversations.length
             ? conversations.map(m=>`${m.role}: ${m.content}`).join("\n")
             : "No prior conversation.",
@@ -129,7 +124,7 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
         input: query,
         reasoning:{effort:"low"}
     });
-    // use the optimized query from here on
+    
     promptVars.query = response.output_text;
 
     // planner agent
