@@ -1,5 +1,7 @@
-// write the exports here 
+// write the exports here
 import { Atlas } from "./agents/main.agent";
+
+export { createAtlas, type AtlasOptions } from "./agents/main.agent";
 import { planner_agent } from "./agents/planner.agent";
 import { reflection_agent } from "./agents/reflection.agent";
 

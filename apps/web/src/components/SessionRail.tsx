@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, ChatText, Plus, SidebarSimple } from "@phosphor-icons/react";
+import { BookOpen, ChatText, GearSix, Plus, SidebarSimple } from "@phosphor-icons/react";
 import { fetchSessions } from "../lib/api";
 import type { SessionSummary } from "../lib/types";
 
@@ -10,9 +10,10 @@ interface SessionRailProps {
     onSelect: (id: number) => void;
     onNewChat: () => void;
     onOpenSkills: () => void;
+    onOpenSettings: () => void;
 }
 
-export function SessionRail({ activeSessionId, onSelect, onNewChat, onOpenSkills }: SessionRailProps) {
+export function SessionRail({ activeSessionId, onSelect, onNewChat, onOpenSkills, onOpenSettings }: SessionRailProps) {
     const [sessions, setSessions] = useState<SessionSummary[]>([]);
     const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSE_KEY) === "1");
 
@@ -41,6 +42,9 @@ export function SessionRail({ activeSessionId, onSelect, onNewChat, onOpenSkills
                 </IconButton>
                 <IconButton label="Skills" onClick={onOpenSkills}>
                     <BookOpen size={18} />
+                </IconButton>
+                <IconButton label="Settings" onClick={onOpenSettings}>
+                    <GearSix size={18} />
                 </IconButton>
             </aside>
         );
@@ -102,6 +106,14 @@ export function SessionRail({ activeSessionId, onSelect, onNewChat, onOpenSkills
                 >
                     <BookOpen size={15} className="shrink-0" />
                     Skills
+                </button>
+                <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-ink-muted transition-colors hover:bg-surface-2/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                    <GearSix size={15} className="shrink-0" />
+                    Settings
                 </button>
             </div>
         </aside>

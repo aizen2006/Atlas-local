@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import chat  from './routes/chat'
 import sessions from './routes/sessions'
 import skills from './routes/skills'
+import settings from './routes/settings'
+import { soulStatus } from './libs/soul'
 import { syncSkills } from './libs/utils'
 
 export const app = new Hono()
@@ -22,11 +24,15 @@ void syncSkills()
   .then((count)=>console.log(`Synced ${count} skill(s)`))
   .catch((err)=>console.error("Skill sync failed",err));
 
+// the persona rides on every request, so its size is worth seeing at a glance
+console.log(soulStatus());
+
 // routes
 
 app.route('/chat',chat);
 app.route('/sessions',sessions);
 app.route('/skills',skills);
+app.route('/settings',settings);
 
 // lightweight liveness check — used by the launcher and the UI to confirm the
 // server is reachable without spending a model call.

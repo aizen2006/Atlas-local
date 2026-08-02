@@ -36,3 +36,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 src/migrations/
 memory.db-shm
 memory.db-wal
+
+# the persona file lives beside the database — same class of personal data
+SOUL.md

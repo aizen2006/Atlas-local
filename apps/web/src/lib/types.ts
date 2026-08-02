@@ -23,6 +23,14 @@ export interface SessionSummary {
     lastOpenedAt: string;
 }
 
+// SOUL.md — user-authored persona, loaded into every turn. Atlas never writes it.
+export interface Soul {
+    content: string;
+    path: string;
+    bytes: number;
+    maxBytes: number;
+}
+
 // A SKILL.md playbook in the registry. Atlas can write these itself, so the UI
 // exists to make that visible and reversible.
 export interface SkillSummary {

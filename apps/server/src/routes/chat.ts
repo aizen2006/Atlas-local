@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { openai } from "../libs/openai";
-import { runAgent , runAgentStream, planner_agent, Atlas, reflection_agent } from "@repo/agents";
+import { runAgent , runAgentStream, planner_agent, createAtlas, reflection_agent } from "@repo/agents";
 import { db, messages, sessions, jobs, experiences } from "@repo/memory";
 import { models } from "@repo/agents";
 import { eq } from "drizzle-orm";
 import { searchMemory, loadSkills, createMemory, listEnabledSkills } from "../libs/utils";
+import { loadPersona } from "../libs/soul";
 
 const chat = new Hono();
 
@@ -48,6 +49,7 @@ interface PipelineSummary {
 async function prepareTurn(query:string,sessionId?:number):Promise<{
     sessionId:number,
     prompt:string,
+    agent:ReturnType<typeof createAtlas>,
     pipeline:PipelineSummary
 }>{
     let conversations : Conversation[] = [];
@@ -174,7 +176,13 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
     // one render, all placeholders resolved
     const prompt = render(promptTemplate,promptVars);
 
-    return { sessionId, prompt, pipeline };
+    // The persona is read per turn and goes into the agent's *instructions*, not
+    // the prompt above — it describes the person, not the request. Building the
+    // agent here rather than importing a singleton is what lets an edit to
+    // SOUL.md take effect on the next message instead of the next restart.
+    const agent = createAtlas({ persona: await loadPersona() });
+
+    return { sessionId, prompt, agent, pipeline };
 }
 
 // non-streaming — the full answer arrives at once after the pipeline completes
@@ -184,7 +192,7 @@ chat.post('/',async(c)=>{
         const prepared = await prepareTurn(query,sessionId);
 
         // call main agent layer
-        const main_output = await runAgent(Atlas,prepared.prompt);
+        const main_output = await runAgent(prepared.agent,prepared.prompt);
         if(!main_output) throw new Error("Failed to get a response from Atlas");
 
         // store's the agent's reply
@@ -212,7 +220,7 @@ chat.post('/stream',async(c)=>{
                 data:JSON.stringify({sessionId:prepared.sessionId,pipeline:prepared.pipeline})
             });
 
-            const textStream = await runAgentStream(Atlas,prepared.prompt);
+            const textStream = await runAgentStream(prepared.agent,prepared.prompt);
             let full = "";
             for await (const chunk of textStream){
                 const delta = chunk.toString();

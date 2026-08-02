@@ -22,7 +22,37 @@ const webToolGuidance = hasFirecrawl
 // Will add connector feature later on to app multiple apps mcp
 // Update the system prompt accordingly
 
-export const Atlas = new Agent({
+export interface AtlasOptions {
+    /**
+     * The user's SOUL.md, describing how they work and talk. Appended to the
+     * instructions rather than the user prompt: it is not part of the request,
+     * and it carries more weight as an instruction.
+     */
+    persona?: string;
+}
+
+/**
+ * Build the Atlas agent for one turn.
+ *
+ * A module-level singleton would freeze the persona at import time, so an edit
+ * to SOUL.md would not take effect until the process restarted. Constructing per
+ * turn keeps the agent in step with what the user last saved.
+ */
+export function createAtlas({ persona }: AtlasOptions = {}) {
+    const personaBlock = persona?.trim()
+        ? `
+
+        # About the person you are assisting
+
+        The following is written by the user, about themselves and how they want you to
+        work. Follow it. Where it conflicts with a general guideline above, it wins —
+        it describes this specific person, and the guidelines describe everyone.
+
+        ${persona.trim()}
+        `
+        : "";
+
+    return new Agent({
     name:"Atlas : AI executive assistant",
     instructions: `
         You are Atlas, an AI executive assistant. Your job is to help the user operate faster, stay organized, and make better decisions with clear, concise, and reliable support.
@@ -71,11 +101,15 @@ export const Atlas = new Agent({
         - Be fast, but not sloppy.
         - Be proactive, but not intrusive.
         - Protect the user's time.
-        `,
+        ${personaBlock}`,
     tools:[
         ...webTools,
         createSubAgents,
         createSkill,
     ],
     model:models.atlas,
-})
+    });
+}
+
+/** Persona-less Atlas, for callers that don't have a soul to inject. */
+export const Atlas = createAtlas();

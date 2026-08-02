@@ -1,4 +1,30 @@
-import type { ChatMessage, SessionSummary, SkillSummary } from "./types";
+import type { ChatMessage, SessionSummary, SkillSummary, Soul } from "./types";
+
+export async function fetchSoul(): Promise<Soul | null> {
+    try {
+        const res = await fetch("/settings/soul");
+        if (!res.ok) return null;
+        return (await res.json()) as Soul;
+    } catch {
+        return null;
+    }
+}
+
+/** Returns null on success, or a message to show the user. */
+export async function saveSoul(content: string): Promise<string | null> {
+    try {
+        const res = await fetch("/settings/soul", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content }),
+        });
+        if (res.ok) return null;
+        const body = (await res.json().catch(() => undefined)) as { message?: string } | undefined;
+        return body?.message ?? "Could not save.";
+    } catch {
+        return "Could not reach the server.";
+    }
+}
 
 export async function fetchSessions(): Promise<SessionSummary[]> {
     try {
