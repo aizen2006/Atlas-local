@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchSessionMessages } from "../lib/api";
 import { streamChat } from "../lib/chatStream";
 import type { ChatMessage } from "../lib/types";
 
@@ -18,10 +19,19 @@ export type ChatStatus = "idle" | "waiting" | "streaming" | "error";
 export function useChat() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [status, setStatus] = useState<ChatStatus>("idle");
+    const [activeSessionId, setActiveSessionId] = useState<number | null>(loadSessionId());
 
-    const sessionId = useRef<number | null>(loadSessionId());
+    const sessionId = useRef<number | null>(activeSessionId);
     const abort = useRef<AbortController | null>(null);
     const lastQuery = useRef<string>("");
+
+    // keep the ref, the reactive state, and localStorage in lockstep
+    const setSession = useCallback((id: number | null) => {
+        sessionId.current = id;
+        setActiveSessionId(id);
+        if (id === null) localStorage.removeItem(SESSION_KEY);
+        else localStorage.setItem(SESSION_KEY, String(id));
+    }, []);
 
     const run = useCallback(async (query: string) => {
         const agentId = nextId();
@@ -43,8 +53,7 @@ export function useChat() {
                 { query, sessionId: sessionId.current },
                 {
                     onMeta: (meta) => {
-                        sessionId.current = meta.sessionId;
-                        localStorage.setItem(SESSION_KEY, String(meta.sessionId));
+                        setSession(meta.sessionId);
                         patchAgent({ pipeline: meta.pipeline });
                     },
                     onToken: (delta) => {
@@ -65,8 +74,7 @@ export function useChat() {
             );
         } catch {
             if (controller.signal.aborted) {
-                // user pressed Stop — keep whatever streamed so far
-                setStatus("idle");
+                setStatus("idle"); // user pressed Stop — keep partial content
             } else {
                 patchAgent({ error: "Connection lost. Check that the Atlas server is running." });
                 setStatus("error");
@@ -74,7 +82,7 @@ export function useChat() {
         } finally {
             abort.current = null;
         }
-    }, []);
+    }, [setSession]);
 
     const send = useCallback(
         (query: string) => {
@@ -89,7 +97,6 @@ export function useChat() {
     const stop = useCallback(() => abort.current?.abort(), []);
 
     const retry = useCallback(() => {
-        // drop the failed user + agent pair, then re-run the same query
         setMessages((m) => {
             const copy = [...m];
             if (copy[copy.length - 1]?.role === "agent") copy.pop();
@@ -101,11 +108,29 @@ export function useChat() {
 
     const newChat = useCallback(() => {
         abort.current?.abort();
-        sessionId.current = null;
-        localStorage.removeItem(SESSION_KEY);
+        setSession(null);
         setMessages([]);
         setStatus("idle");
+    }, [setSession]);
+
+    // open an existing conversation from the sidebar
+    const loadSession = useCallback(
+        async (id: number) => {
+            abort.current?.abort();
+            setSession(id);
+            setStatus("idle");
+            setMessages(await fetchSessionMessages(id));
+        },
+        [setSession],
+    );
+
+    // restore the last conversation on reload so a refresh doesn't lose the thread
+    useEffect(() => {
+        const stored = loadSessionId();
+        if (stored !== null) void loadSession(stored);
+        // run once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    return { messages, status, send, stop, retry, newChat };
+    return { messages, status, activeSessionId, send, stop, retry, newChat, loadSession };
 }
