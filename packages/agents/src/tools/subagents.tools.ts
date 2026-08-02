@@ -1,9 +1,74 @@
 import { tool, run, type Tool } from "@openai/agents";
 import { SandboxAgent, compaction, filesystem, memory, shell, type Capability } from "@openai/agents/sandbox";
 import { UnixLocalSandboxClient } from "@openai/agents/sandbox/local";
+import { existsSync, constants, openSync, closeSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import z from "zod";
 import { models } from "../constants";
 import { webSearch, webScrape, agenticSearch } from "./webSearch.tools";
+
+// The sandbox runs commands through a POSIX shell and, when none is configured,
+// falls back to a hard-coded "/bin/sh". On Windows that path does not exist, and
+// the failure is quiet rather than loud: the command "completes" with exit code
+// -4058 (ENOENT) and no output, so a sub-agent appears to run and returns
+// nothing. It only seems to work when launched from Git Bash, which happens to
+// set SHELL to a real .exe path — launch the same code from PowerShell and it
+// silently produces empty results.
+//
+// So on Windows the shell is resolved explicitly, and if none is found the
+// feature reports itself unsupported instead of failing invisibly.
+const WINDOWS_SHELL_CANDIDATES = [
+    process.env.SHELL,
+    "C:/Program Files/Git/bin/bash.exe",
+    "C:/Program Files/Git/usr/bin/bash.exe",
+    "C:/Program Files (x86)/Git/bin/bash.exe",
+    "C:/Program Files/Git/usr/bin/sh.exe",
+];
+
+function resolveSandboxShell(): string | undefined {
+    // POSIX hosts already resolve /bin/sh correctly
+    if (process.platform !== "win32") return undefined;
+    return WINDOWS_SHELL_CANDIDATES.find((path) => path && existsSync(path));
+}
+
+const sandboxShell = resolveSandboxShell();
+
+// Second, independent blocker. The sandbox materializes every workspace file
+// with *numeric* open flags (O_WRONLY|O_CREAT|O_TRUNC|O_NOFOLLOW). Bun on
+// Windows rejects numeric flags with EINVAL — the same call succeeds under Node
+// on Windows, and succeeds in Bun when given a string flag like "w". So the
+// sandbox fails on the first file write even once the shell resolves.
+//
+// Probed rather than version-sniffed, so this re-enables itself automatically if
+// the runtime stops rejecting them.
+function sandboxFileWritesWork(): boolean {
+    const probe = join(tmpdir(), `atlas-sandbox-probe-${process.pid}`);
+    try {
+        closeSync(openSync(probe, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC));
+        return true;
+    } catch {
+        return false;
+    } finally {
+        try { unlinkSync(probe); } catch { /* nothing to clean up */ }
+    }
+}
+
+const hasShell = process.platform !== "win32" || Boolean(sandboxShell);
+const fileWritesWork = sandboxFileWritesWork();
+
+/**
+ * Whether sub-agent delegation can actually run here. When false the caller
+ * should leave the tool unregistered rather than offer something that fails
+ * mid-task or returns empty output.
+ */
+export const subagentsSupported = hasShell && fileWritesWork;
+
+export const subagentsUnsupportedReason = !hasShell
+    ? "Sub-agents need a POSIX shell. Install Git for Windows (which provides bash.exe) and restart Atlas."
+    : !fileWritesWork
+      ? "The sandbox cannot write files on this runtime: Bun on Windows rejects the numeric file-open flags it uses. Running Atlas under Node, or on macOS/Linux, enables sub-agents."
+      : "";
 
 {/*
     Fixed roster of subagent personas — the calling agent only picks a
@@ -73,7 +138,9 @@ export const createSubAgents : Tool = tool({
         try {
             const result = await run(agent,prompt,{
                 sandbox:{
-                    client:new UnixLocalSandboxClient()
+                    // defaultShell is undefined on POSIX, where the built-in
+                    // /bin/sh fallback is correct
+                    client:new UnixLocalSandboxClient({ defaultShell: sandboxShell })
                 }
             });
             return result.finalOutput;

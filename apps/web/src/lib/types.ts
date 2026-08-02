@@ -31,6 +31,16 @@ export interface Soul {
     maxBytes: number;
 }
 
+// `supported` is separate from `enabled` so the UI can say why a switch is off
+// rather than showing one that refuses to move.
+export interface Toggles {
+    subagents: {
+        enabled: boolean;
+        supported: boolean;
+        reason: string | null;
+    };
+}
+
 // A SKILL.md playbook in the registry. Atlas can write these itself, so the UI
 // exists to make that visible and reversible.
 export interface SkillSummary {

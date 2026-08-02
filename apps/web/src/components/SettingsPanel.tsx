@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
-import { fetchSoul, saveSoul } from "../lib/api";
+import { fetchSoul, fetchToggles, saveSoul, setSubagentsEnabled } from "../lib/api";
+import type { Toggles } from "../lib/types";
 
 /**
  * Settings. Currently one thing: SOUL.md, the persona Atlas loads before every
@@ -19,6 +20,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [justSaved, setJustSaved] = useState(false);
+    const [toggles, setToggles] = useState<Toggles | null>(null);
+    const [togglePending, setTogglePending] = useState(false);
+
+    useEffect(() => {
+        void fetchToggles().then(setToggles);
+    }, []);
 
     useEffect(() => {
         void fetchSoul().then((soul) => {
@@ -77,10 +84,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             >
                 <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                     <div>
-                        <h2 className="text-sm font-medium text-ink">Soul</h2>
+                        <h2 className="text-sm font-medium text-ink">Settings</h2>
                         <p className="text-xs text-ink-muted">
-                            How you want Atlas to work with you. Read before every reply — Atlas never
-                            edits this.
+                            Applies from your next message.
                         </p>
                     </div>
                     <button
@@ -94,6 +100,51 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </header>
 
                 <div className="flex-1 overflow-y-auto p-4">
+                    {toggles && (
+                        <div className="mb-4 flex items-start justify-between gap-3 rounded-md border border-border bg-canvas p-3">
+                            <div className="min-w-0">
+                                <p className="text-xs text-ink">Sub-agents</p>
+                                <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
+                                    {toggles.subagents.supported
+                                        ? "Let Atlas delegate long or messy work to a sandboxed agent."
+                                        : toggles.subagents.reason}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={toggles.subagents.enabled}
+                                disabled={!toggles.subagents.supported || togglePending}
+                                onClick={async () => {
+                                    const next = !toggles.subagents.enabled;
+                                    setTogglePending(true);
+                                    if (await setSubagentsEnabled(next)) {
+                                        setToggles({
+                                            ...toggles,
+                                            subagents: { ...toggles.subagents, enabled: next },
+                                        });
+                                    }
+                                    setTogglePending(false);
+                                }}
+                                className="shrink-0 rounded-md border border-border px-2.5 py-1.5 text-xs text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+                            >
+                                {!toggles.subagents.supported
+                                    ? "Unavailable"
+                                    : toggles.subagents.enabled
+                                      ? "On"
+                                      : "Off"}
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="mb-2">
+                        <p className="text-xs text-ink">Soul</p>
+                        <p className="mt-1 text-[11px] text-ink-muted">
+                            How you want Atlas to work with you. Read before every reply — Atlas never
+                            edits this.
+                        </p>
+                    </div>
+
                     {loading ? (
                         <p className="py-6 text-center text-xs text-ink-muted">Loading…</p>
                     ) : (

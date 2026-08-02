@@ -2,6 +2,7 @@
 import { Atlas } from "./agents/main.agent";
 
 export { createAtlas, type AtlasOptions } from "./agents/main.agent";
+export { subagentsSupported, subagentsUnsupportedReason } from "./tools/subagents.tools";
 import { planner_agent } from "./agents/planner.agent";
 import { reflection_agent } from "./agents/reflection.agent";
 

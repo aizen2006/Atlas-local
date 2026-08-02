@@ -32,6 +32,7 @@ through your first request.
 |---|---|---|
 | `FIRECRAWL_API_KEY` | — | Enables web research. Without it Atlas starts normally and the `webSearch`, `webScrape`, and `agenticSearch` tools are simply not offered to the model. |
 | `DB_FILE_NAME` | `packages/memory/src/memory.db` | Where your local database lives. Set it to move or share the file. |
+| `SOUL_FILE_NAME` | `SOUL.md` beside the database | Your persona file — see [soul.md](soul.md). |
 | `PORT` | `3000` (dev) / `3932` (launcher) | Port for the HTTP server. The launcher picks another free port automatically if this one is taken. |
 
 > **`.env` location:** the repo root is the canonical spot. Keys left in

@@ -7,6 +7,7 @@ import { models } from "@repo/agents";
 import { eq } from "drizzle-orm";
 import { searchMemory, loadSkills, createMemory, listEnabledSkills } from "../libs/utils";
 import { loadPersona } from "../libs/soul";
+import { subagentsEnabled } from "../libs/settings";
 
 const chat = new Hono();
 
@@ -180,7 +181,10 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
     // the prompt above — it describes the person, not the request. Building the
     // agent here rather than importing a singleton is what lets an edit to
     // SOUL.md take effect on the next message instead of the next restart.
-    const agent = createAtlas({ persona: await loadPersona() });
+    const agent = createAtlas({
+        persona: await loadPersona(),
+        subagentsEnabled: await subagentsEnabled(),
+    });
 
     return { sessionId, prompt, agent, pipeline };
 }

@@ -1,7 +1,7 @@
 import { Agent } from '@openai/agents'
 import { models } from "../constants";
 import { webSearch , webScrape ,agenticSearch } from '../tools/webSearch.tools';
-import { createSubAgents } from '../tools/subagents.tools';
+import { createSubAgents, subagentsSupported } from '../tools/subagents.tools';
 import { createSkill } from '../tools/skills.tools';
 import { hasFirecrawl } from '../utils/firecrawl';
 
@@ -29,6 +29,12 @@ export interface AtlasOptions {
      * and it carries more weight as an instruction.
      */
     persona?: string;
+    /**
+     * Whether sub-agent delegation is available. When false the tool is left out
+     * entirely and its guidance is removed from the instructions — a tool the
+     * model can see is a tool it will try to use. Defaults to on.
+     */
+    subagentsEnabled?: boolean;
 }
 
 /**
@@ -38,7 +44,15 @@ export interface AtlasOptions {
  * to SOUL.md would not take effect until the process restarted. Constructing per
  * turn keeps the agent in step with what the user last saved.
  */
-export function createAtlas({ persona }: AtlasOptions = {}) {
+export function createAtlas({ persona, subagentsEnabled = true }: AtlasOptions = {}) {
+    // never offer delegation the host cannot actually perform
+    const useSubagents = subagentsEnabled && subagentsSupported;
+
+    const subagentGuidance = useSubagents
+        ? `
+        - Use CreateSubAgents to delegate a complex, multi-step, or long-running piece of work to a sub-agent instead of doing it inline — pick the closest subagent_type and write a fully self-contained prompt, since the sub-agent has no memory of this conversation`
+        : "";
+
     const personaBlock = persona?.trim()
         ? `
 
@@ -77,7 +91,7 @@ export function createAtlas({ persona }: AtlasOptions = {}) {
         Tool usage:${webToolGuidance}
         - Prefer the simplest tool that solves the task.
         - Do not use a more expensive or complex tool when a lighter tool is sufficient.
-        - Use CreateSubAgents to delegate a complex, multi-step, or long-running piece of work to a sub-agent instead of doing it inline — pick the closest subagent_type and write a fully self-contained prompt, since the sub-agent has no memory of this conversation
+${subagentGuidance}
         - Use CreateSkill only after finishing a task whose *procedure* is worth repeating — a sequence of steps, a format, or a checklist that would apply to a different request of the same kind. Never for a one-off answer, and never for a fact about the user. Most tasks do not deserve a skill; creating a weak one makes future tasks worse, because the planner loads skills by description and a vague one gets pulled into work it does not fit.
 
         Work style:
@@ -104,7 +118,7 @@ export function createAtlas({ persona }: AtlasOptions = {}) {
         ${personaBlock}`,
     tools:[
         ...webTools,
-        createSubAgents,
+        ...(useSubagents ? [createSubAgents] : []),
         createSkill,
     ],
     model:models.atlas,

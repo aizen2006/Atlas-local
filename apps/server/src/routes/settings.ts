@@ -1,7 +1,36 @@
 import { Hono } from "hono";
 import { readSoul, writeSoul, SOUL_PATH, SOUL_MAX_BYTES } from "../libs/soul";
+import { subagentsEnabled, setSubagentsEnabled } from "../libs/settings";
+import { subagentsSupported, subagentsUnsupportedReason } from "@repo/agents";
 
 const settingsRoute = new Hono();
+
+// Toggles. `supported` is reported separately from `enabled` so the UI can
+// explain *why* something is off rather than showing a switch that silently
+// refuses to move.
+settingsRoute.get("/toggles", async (c) => {
+    return c.json({
+        subagents: {
+            enabled: await subagentsEnabled(),
+            supported: subagentsSupported,
+            reason: subagentsSupported ? null : subagentsUnsupportedReason,
+        },
+    });
+});
+
+settingsRoute.put("/toggles/subagents", async (c) => {
+    const body = await c.req.json().catch(() => undefined);
+    if (typeof body?.enabled !== "boolean") {
+        return c.json({ message: "Body must be { enabled: boolean }" }, 400);
+    }
+    if (body.enabled && !subagentsSupported) {
+        return c.json({ message: subagentsUnsupportedReason }, 409);
+    }
+
+    await setSubagentsEnabled(body.enabled);
+    // applies on the next message — the agent is rebuilt per turn
+    return c.json({ enabled: await subagentsEnabled(), supported: subagentsSupported });
+});
 
 // SOUL.md is user-authored: Atlas reads it before every reply and never writes
 // to it. These endpoints are the only writer.

@@ -71,6 +71,17 @@ export const memories = tb("memories", {
         .notNull(),
 });
 
+// key/value app settings — user-facing toggles that must survive a restart.
+// Deliberately schemaless: each setting is one row, so adding one later needs no
+// migration.
+export const settings = tb("settings", {
+    key: text().primaryKey(),
+    value: text().notNull(),
+    updatedAt: integer({ mode: "timestamp" })
+        .default(sql`(unixepoch())`)
+        .notNull(),
+});
+
 // For background jobs
 
 export const jobs = tb("jobs", {

@@ -1,4 +1,27 @@
-import type { ChatMessage, SessionSummary, SkillSummary, Soul } from "./types";
+import type { ChatMessage, SessionSummary, SkillSummary, Soul, Toggles } from "./types";
+
+export async function fetchToggles(): Promise<Toggles | null> {
+    try {
+        const res = await fetch("/settings/toggles");
+        if (!res.ok) return null;
+        return (await res.json()) as Toggles;
+    } catch {
+        return null;
+    }
+}
+
+export async function setSubagentsEnabled(enabled: boolean): Promise<boolean> {
+    try {
+        const res = await fetch("/settings/toggles/subagents", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+        });
+        return res.ok;
+    } catch {
+        return false;
+    }
+}
 
 export async function fetchSoul(): Promise<Soul | null> {
     try {
