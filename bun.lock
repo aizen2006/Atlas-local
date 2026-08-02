@@ -14,7 +14,6 @@
       "name": "server",
       "dependencies": {
         "@repo/agents": "workspace:*",
-        "@repo/config": "workspace:*",
         "@repo/memory": "workspace:*",
         "dotenv": "^17.4.2",
         "drizzle-orm": "^0.45.2",
@@ -48,25 +47,11 @@
       "name": "@repo/agents",
       "dependencies": {
         "@openai/agents": "^0.11.8",
-        "@pipedream/sdk": "^3.1.1",
-        "@repo/config": "workspace:*",
         "@repo/memory": "workspace:*",
         "dotenv": "^17.4.2",
         "drizzle-orm": "^0.45.2",
         "firecrawl": "^4.28.2",
         "zod": "^4.4.3",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-      "peerDependencies": {
-        "typescript": "^5",
-      },
-    },
-    "packages/config": {
-      "name": "@repo/config",
-      "dependencies": {
-        "dotenv": "^17.4.2",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -95,7 +80,6 @@
     "packages/memory": {
       "name": "@repo/memory",
       "dependencies": {
-        "@repo/config": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "sqlite-vec": "^0.1.9",
       },
@@ -286,11 +270,7 @@
 
     "@phosphor-icons/react": ["@phosphor-icons/react@2.1.10", "", { "peerDependencies": { "react": ">= 16.8", "react-dom": ">= 16.8" } }, "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA=="],
 
-    "@pipedream/sdk": ["@pipedream/sdk@3.1.1", "", {}, "sha512-y/mL3vL7SZAthYwRpDgdPDHdy0wdgCq8VW4zhyMCaq1l+ZbNYiZeJ1zmlinMNUdpnd1bAL78L9kJXwocRq+Atw=="],
-
     "@repo/agents": ["@repo/agents@workspace:packages/agents"],
-
-    "@repo/config": ["@repo/config@workspace:packages/config"],
 
     "@repo/eslint-config": ["@repo/eslint-config@workspace:packages/eslint-config"],
 

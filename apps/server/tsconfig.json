@@ -4,7 +4,14 @@
     "types": ["bun"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
+    // without an explicit target tsc falls back to ES5, which rejects the
+    // top-level await in atlas.ts and every private identifier in the SDK's
+    // type definitions. Bun runs ESNext, so the checker should assume it too.
+    "target": "ESNext",
+    "lib": ["ESNext"],
     "module": "Preserve",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "noEmit": true
   }
 }

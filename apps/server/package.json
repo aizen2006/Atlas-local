@@ -1,11 +1,11 @@
 {
   "name": "server",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/agents": "workspace:*",
-    "@repo/config": "workspace:*",
     "@repo/memory": "workspace:*",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

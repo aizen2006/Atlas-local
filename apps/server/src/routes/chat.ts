@@ -124,7 +124,7 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
         input: query,
         reasoning:{effort:"low"}
     });
-    
+
     promptVars.query = response.output_text;
 
     // planner agent
@@ -187,9 +187,7 @@ chat.post('/',async(c)=>{
     }
 })
 
-// streaming — the same pipeline, but Atlas's tokens are pushed as they arrive.
-// Event order: one `meta` (sessionId + pipeline), many `token`, then `done`
-// (or `error`). Every event's `data` is JSON so tokens keep their newlines.
+
 chat.post('/stream',async(c)=>{
     const { query , sessionId } = await c.req.json();
     return streamSSE(c,async(stream)=>{

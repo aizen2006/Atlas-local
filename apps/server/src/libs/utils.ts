@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { db, memories, skills } from "@repo/memory";
-import { models } from "@repo/config";
+import { models } from "@repo/agents";
 import { openai } from "./openai";
 import { Embedding } from "openai/resources/embeddings.mjs";
 import { sql, inArray, eq } from "drizzle-orm";
