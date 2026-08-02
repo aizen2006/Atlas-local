@@ -92,6 +92,6 @@ the URL. `bun run dev` does not; set `PORT` to something else.
 are deliberately not registered, so Atlas will tell you it has no web access rather
 than pretending to search.
 
-**Sub-agent delegation fails** — sub-agents currently use a Unix-only sandbox client and
-do not run on Windows. See [subagents.md](subagents.md) once that lands; until then,
-this is a known gap rather than a misconfiguration.
+**Sub-agents show as Unavailable** — expected on Windows when running under Bun: Bun
+rejects the numeric file-open flags the sandbox uses, so Atlas disables the feature rather
+than letting it fail mid-task. Everything else works. See [subagents.md](subagents.md).

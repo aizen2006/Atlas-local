@@ -150,6 +150,12 @@ Long or messy work gets delegated. `createSubAgents` spawns a sandboxed agent in
 
 Because Atlas runs on your machine, `general` having shell access is the same trust model as any local dev tool — it is your machine, running your task. This is also precisely why hosting Atlas multi-tenant is not a small change, and part of why it stays local-first.
 
+> **Not available on Bun + Windows.** The sandbox writes workspace files using numeric
+> file-open flags, which Bun rejects on Windows — the same call works under Node on
+> Windows, and on macOS and Linux. Atlas detects this at startup, leaves the tool
+> unregistered, and says so in Settings rather than failing mid-task. See
+> [docs/subagents.md](docs/subagents.md).
+
 ---
 
 ## What Atlas can do today
@@ -283,7 +289,9 @@ Atlas is a working prototype under active development. What's real, and what isn
 - No interface. `POST /chat` via curl is the only way in — the `atlas` CLI and local web UI are the next milestone.
 - Single-tenant by design. `PIPEDREAM_USER_ID` is one hardcoded external user; connections are not per-user.
 - `packages/ui/` is untouched `create-turbo` scaffold that nothing imports.
-- Sub-agents use `UnixLocalSandboxClient`, which is not portable to Windows.
+- Sub-agents don't run on Bun + Windows — not because the sandbox is Unix-only, but
+  because Bun on Windows rejects the numeric file-open flags it uses (Node on Windows
+  handles them fine). Detected at startup and surfaced in Settings; everything else works.
 
 ---
 
