@@ -1,11 +1,46 @@
-import Supermemory  from "supermemory";
+import Supermemory from "supermemory";
 import fs from "fs";
 
+// Mode is decided once, on first use, from the environment:
+//
+//   nothing set              -> local. Supermemory.local() installs and starts the
+//                               server if it isn't already up, and embeddings run
+//                               on-device. This is the default so a fresh install
+//                               keeps working with no account and no key.
+//   SUPERMEMORY_API_KEY set  -> cloud. Opt-in, because it sends memories off the machine.
+//   SUPERMEMORY_BASE_URL set -> that endpoint, as-is. For a server you already run
+//                               yourself; skips the auto-start entirely.
+//
+// Built lazily rather than at import time: constructing eagerly turns "no key yet"
+// into a crash on boot, which is the same trap the Firecrawl client used to have.
 
-export const client = new Supermemory({
-    apiKey:process.env.SUPERMEMORY,
-    baseURL:process.env.SUPERMEMORY_BASE_URL
-});
+// SUPERMEMORY_API_KEY is what the SDK itself reads; SUPERMEMORY_APIKEY is accepted
+// so existing local .env files keep working.
+const apiKey = process.env.SUPERMEMORY_API_KEY || process.env.SUPERMEMORY_APIKEY;
+const baseURL = process.env.SUPERMEMORY_BASE_URL;
+
+let clientPromise: Promise<Supermemory> | undefined;
+
+export function getClient(): Promise<Supermemory> {
+    clientPromise ??= (async () => {
+        if (baseURL) {
+            console.log(`Supermemory: ${baseURL}`);
+            return new Supermemory({ apiKey: apiKey ?? "local", baseURL });
+        }
+        if (apiKey) {
+            console.log("Supermemory: cloud");
+            return new Supermemory({ apiKey });
+        }
+        console.log("Supermemory: local (starting server if needed)");
+        // installs + starts the CLI server when it isn't already reachable, then
+        // waits for it to answer. Note it is spawned detached, so it outlives us.
+        return Supermemory.local();
+    })();
+    return clientPromise;
+}
+
+/** Which backend the next call will use, without constructing a client. */
+export const supermemoryMode = baseURL ? "self-hosted" : apiKey ? "cloud" : "local";
 
 interface IngestionType{
     content:string,
@@ -18,11 +53,14 @@ interface IngestionType{
 // can use this to add a new memory or update one
 export async function ingestionMemory({content,convId,userId,metadata}:IngestionType){
     try {
+        const client = await getClient();
         await client.add({
             content:content,
             containerTag:userId,
-            customId:convId,
-            metadata:metadata
+            // convId identifies a conversation, not a document — passing it as
+            // customId would make every memory from one conversation overwrite the
+            // last. Kept as metadata so the link survives without collapsing rows.
+            metadata:{...metadata, ...(convId ? {convId} : {})}
         })
     } catch (error) {
         console.error(error);
@@ -51,6 +89,7 @@ export async function searchMemory({
     rerank=false,
     threshold=0.5}:SearchType){
     try {
+        const client = await getClient();
         const results = await client.search({
             q,
             searchMode,
@@ -69,7 +108,7 @@ export async function searchMemory({
     }
 }
 
-// upload files 
+// upload files
 interface UploadType{
     path:fs.PathLike,
     metadata?:string,
@@ -79,6 +118,7 @@ interface UploadType{
 export async function uploadFile({path,userId,tasktype,metadata}
     :UploadType){
     try {
+        const client = await getClient();
         await client.documents.uploadFile({
             file: fs.createReadStream(path),
             containerTag: userId,
@@ -102,6 +142,7 @@ interface ListDocs{
 }
 export async function listDocs({userId,limit=10,order='desc',sort='updatedAt',page=1}:ListDocs){
     try {
+        const client = await getClient();
         const documents = await client.documents.list({
             limit,
             order,
@@ -129,11 +170,12 @@ export async function updateDocs({
     docId,
     metadata}:UpdateMeta){
     try {
+        const client = await getClient();
         await client.documents.update(docId,{
             content,
             metadata,
             containerTag:userId
-            
+
         })
     } catch (error) {
         console.error(error);
@@ -143,6 +185,7 @@ export async function updateDocs({
 
 export async function deleteDoc(docId:string){
     try{
+        const client = await getClient();
         await client.documents.delete(docId);
     } catch(error){
         console.error(error);
@@ -152,7 +195,8 @@ export async function deleteDoc(docId:string){
 
 export async function deleteDocBulk({ids}:{ids?:string[]}){
     try {
-        await client.documents.deleteBulk({ids})   
+        const client = await getClient();
+        await client.documents.deleteBulk({ids})
     } catch (error) {
         console.error(error);
         throw new Error("Failed to delete the docs",{ cause: error });

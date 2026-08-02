@@ -54,3 +54,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
 
 
 export * from "./schema";
+
+// the Supermemory-backed memory layer. Exported under a namespace because
+// searchMemory here and the sqlite-vec searchMemory in the server's utils
+// coexist until the migration finishes.
+export * as supermemory from "./supermemory";
