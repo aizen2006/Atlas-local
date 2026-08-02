@@ -76,13 +76,17 @@ Atlas/
 | `sessions` | One conversation — title, timestamps |
 | `messages` | Every user and agent turn, in order |
 | `experiences` | A whole solved task: what was asked, what happened, the reflection drawn from it |
-| `memories` | Distilled reusable lessons, with category, importance and confidence |
-| `vec_memories` | Vector shadow table, keyed to `memories.id` |
 | `skills` | Registry of `SKILL.md` playbooks on disk, synced at boot |
 | `jobs` | Background work (currently reflection runs), for retry and debugging |
+| `settings` | User toggles that survive a restart |
 
 Schema lives in [`packages/memory/src/schema.ts`](../packages/memory/src/schema.ts) and
-is applied automatically on boot. See [memory.md](memory.md) for how retrieval works.
+is applied automatically on boot — there is no migration command to run.
+
+**Memories are not in this database.** They live in Supermemory, which owns their
+embedding, storage and retrieval. What stays local is the *record* of each task in
+`experiences`, including the reflections that were deliberately judged not worth keeping.
+See [memory.md](memory.md).
 
 ## Sub-agents
 

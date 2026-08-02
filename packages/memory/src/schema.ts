@@ -47,29 +47,10 @@ export const skills = tb('skills',{
         .default(sql`(unixepoch())`)
         .notNull()
 });
-// Memory - small reusable facts extracted from experiences
-export const memories = tb("memories", {
-    id: integer().primaryKey({ autoIncrement: true }),
-    content: text().notNull(),
-    category: text({
-        enum: [
-            "user",
-            "project",
-            "workflow",
-            "tool",
-            "fact"
-        ]
-    }),
-    confidence: integer().default(100),
-    importance: integer().default(50),
-    sourceExperienceId: integer()
-        .references(() => experiences.id),
-    lastAccessed: integer({ mode: "timestamp" })
-        .default(sql`(unixepoch())`),
-    createdAt: integer({ mode: "timestamp" })
-        .default(sql`(unixepoch())`)
-        .notNull(),
-});
+// Memories are not stored here. They live in Supermemory, which owns their
+// embedding, storage and retrieval; `experiences` keeps the local record of what
+// each task taught, including the reflections that were deliberately *not*
+// worth remembering.
 
 // key/value app settings — user-facing toggles that must survive a restart.
 // Deliberately schemaless: each setting is one row, so adding one later needs no

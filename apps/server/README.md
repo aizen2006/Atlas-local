@@ -28,7 +28,7 @@ The handler in [`src/routes/chat.ts`](src/routes/chat.ts) runs these steps:
 4. **Retrieve** — if the planner asked for them: `searchMemory(query, 3)` (semantic search) and `loadSkills(names)` (read `SKILL.md` from disk), injected into the prompt template.
 5. **Act** — run the Atlas agent on the assembled prompt; persist its reply.
 6. **Respond** — return `{ sessionId, response }`.
-7. **Reflect (background)** — `runReflectionPipeline` fires without blocking the response: open a `jobs` row → record an `experiences` row → run the Reflection agent → store the lesson via `createMemory` → mark the job complete (or failed).
+7. **Reflect (background)** — `runReflectionPipeline` fires without blocking the response: open a `jobs` row → record an `experiences` row → run the Reflection agent → store the lesson via `remember` (Supermemory) → mark the job complete (or failed).
 
 ### `POST /chat/stream`
 
@@ -40,15 +40,16 @@ Helpers the pipeline (and reflection) depend on:
 
 | Function | Purpose |
 | ---------------- | -------------------------------------------------------------------------- |
-| `embed(text)` | Create an embedding via `text-embedding-3-small`. |
-| `createMemory(...)` | Insert a memory row **and** its embedding into the `vec_memories` table. |
-| `searchMemory(query, k)` | Embed the query, k-NN search `vec_memories`, hydrate the matching `memories`. |
-| `deleteMemory(id)` | Remove a memory from both the `memories` and `vec_memories` tables. |
-| `loadSkills(names)` | Read the `SKILL.md` files for the named skills and strip their frontmatter. |
+| `listEnabledSkills()` | The catalog the planner chooses from — names and descriptions only. |
+| `loadSkills(names)` | Read the `SKILL.md` files for the named skills, strip frontmatter, record usage. |
+| `syncSkills()` | Scan `packages/skills/*/SKILL.md` and upsert the registry. |
+
+Memory helpers live in `libs/memory.ts` (`remember`, `recall`) and are backed by
+Supermemory; both fail soft, so an unreachable backend costs recall but never the turn.
 
 ## Environment
 
-The server process needs **both** OpenAI variable names — `OPENAI` (used directly by `libs/openai.ts`) and `OPENAI_API_KEY` (used by `@repo/agents`) — plus the Firecrawl and Pipedream keys the agents rely on. See the [root README](../../README.md#2-configure-environment) for the full table.
+`libs/env.ts` loads `.env` from the repo root before anything reads `process.env`. Only `OPENAI_API_KEY` is required; `FIRECRAWL_API_KEY`, `DB_FILE_NAME`, `SOUL_FILE_NAME` and the `SUPERMEMORY_*` variables are optional. See [docs/setup.md](../../docs/setup.md).
 
 ## Run
 

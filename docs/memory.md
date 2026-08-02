@@ -1,19 +1,34 @@
 # Memory
 
-> **Status:** this page describes the current SQLite + vector implementation. The memory
-> layer is being moved onto [Supermemory](https://supermemory.ai) — local by default,
-> cloud optional — which will replace most of what is below. This page is rewritten when
-> that lands.
-
 Atlas separates two things that are easy to conflate:
 
 - **Conversation history** — every message, in order, per session. Relational, complete,
-  never summarized.
+  never summarized. Lives in your local SQLite database.
 - **Memory** — a small set of distilled, reusable lessons drawn from past tasks. Lossy by
-  design, retrieved by relevance rather than recency.
+  design, retrieved by relevance rather than recency. Lives in
+  [Supermemory](https://supermemory.ai).
 
 History is what lets you reopen a conversation. Memory is what makes a *new* conversation
 better than the last one.
+
+## Local or cloud — you choose
+
+| Config | Where memory lives |
+|---|---|
+| nothing set | **Local.** The Supermemory server and its embedding model run on your machine. Nothing leaves it. |
+| `SUPERMEMORY_API_KEY` set | **Cloud.** Memories are stored on Supermemory's servers, using their tuned extraction models. |
+| `SUPERMEMORY_BASE_URL` set | That endpoint, as-is — for a server you already run yourself. |
+
+Local is the default, because sending your memories somewhere should be a deliberate act
+rather than what happens when you don't configure anything. Atlas prints the active mode
+on every boot:
+
+```
+Memory: local
+```
+
+Everything else — sessions, messages, experiences, skills, `SOUL.md` — stays on your disk
+either way.
 
 ## What gets remembered
 
@@ -34,18 +49,19 @@ logged as experiences without producing a memory.
 | **Stored** | `Prefers very short emails and always signs off as Soubhik. Their manager is Priya.` |
 | **Not stored** | `Self-contained arithmetic question; no durable preference or tool behaviour was learned.` |
 
-Each memory carries a `category` (`user`, `project`, `workflow`, `tool`, `fact`), an
-`importance`, and a `confidence` the agent assigns itself.
-
 ## Why the bar is so high
 
-Retrieval returns the nearest neighbours in embedding space regardless of quality. It has
-no notion of "this one is junk" — it returns the closest *k* it can find. So every stored
+Retrieval returns the nearest matches by similarity, regardless of quality. It has no
+notion of "this one is junk" — it returns the closest results it can find. So every stored
 triviality is a candidate to crowd out a real lesson.
 
 That inverts the intuition: a memory system gets better by refusing to write, not by
 writing more. Accumulated noise makes an assistant worse with use, and the damage is
 invisible until you notice the answers drifting.
+
+Supermemory will happily extract facts from anything handed to it — it has no opinion
+about whether a task was worth learning from. **That judgement is Atlas's**, and it is why
+the reflection agent still runs in front of it.
 
 ## When memory is read
 
@@ -54,8 +70,18 @@ Not on every turn. The planner decides whether a request actually needs past con
 when it says so. The `pipeline` summary returned with each response reports how many
 memories were used, so this is visible rather than mysterious.
 
-## Where it lives
+Standing preferences that should apply to *every* reply do not belong here at all — that
+is what [`SOUL.md`](soul.md) is for. Memory is retrieved on demand and can be missed; your
+soul is loaded every turn and cannot.
 
-One SQLite file, `packages/memory/src/memory.db` by default. Memories and their vectors
-are written and deleted as a pair. To wipe everything Atlas has learned, stop it and
-delete that file — it is recreated empty on the next boot.
+## Failure is soft
+
+If the memory backend is unreachable, Atlas answers without recall and logs the failure
+rather than returning an error. A reflection that cannot be stored still leaves its record
+in `experiences`. Memory improves a turn; it is never a precondition for one.
+
+## Resetting
+
+Memories are not in your SQLite file, so deleting `memory.db` clears your conversations
+but not what Atlas has learned. To clear memory, delete the Supermemory data directory
+(local mode) or the stored memories in your account (cloud).

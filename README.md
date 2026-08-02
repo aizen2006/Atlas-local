@@ -6,7 +6,7 @@
 
 **An agentic executive assistant that plans before it acts, remembers what it learns, and reflects after every task.**
 
-Everything it knows about you lives in a SQLite file on your own disk.
+Runs on your machine. Your conversations stay in a SQLite file you own, and memory runs locally by default.
 
 <br/>
 
@@ -22,43 +22,47 @@ Everything it knows about you lives in a SQLite file on your own disk.
 
 Most assistants are a single model call wrapped in a prompt. Atlas is a small society of agents with a memory. A request doesn't just hit a model — it flows through a cognitive loop: a **planner** decides what's needed, relevant **memories** and **skills** are retrieved, the **Atlas** agent acts with a full toolbelt, and afterwards a **reflection** pass decides whether anything durable was learned and writes it down.
 
-The result is an assistant that gets sharper the more you use it — backed entirely by a local database that never leaves your machine.
+The result is an assistant that gets sharper the more you use it — running on your own machine, with memory local by default.
 
 ---
 
 ## Your data never leaves your machine
 
-This is the part most assistants get wrong. Atlas has no server-side account, no cloud database, and no sync. Your conversations, the lessons it draws from them, and the vectors it searches them by are all rows in a SQLite file you can open, inspect, back up, or delete.
+This is the part most assistants get wrong. Atlas has no server-side account and no sync. Your conversations, the tasks it has worked through, your skills and your `SOUL.md` are all files on your disk you can open, inspect, back up, or delete.
+
+Memory runs on [Supermemory](https://supermemory.ai), and **you choose where**: with no API key it runs locally — the server and its embedding model on your machine, nothing leaving it. Set `SUPERMEMORY_API_KEY` and memory moves to their cloud instead. Local is the default because that decision should be deliberate, and Atlas prints which mode is active on every boot.
 
 ```mermaid
 flowchart LR
     subgraph local["🖥️  Your machine"]
         direction TB
-        DB[("atlas.db — SQLite + sqlite-vec")]
+        DB[("atlas.db — SQLite")]
         S["Sessions & messages"]
         E["Experiences"]
-        M["Memories & embeddings"]
-        K["Skills (SKILL.md)"]
+        K["Skills · SOUL.md"]
+        SM["Supermemory<br/>(local mode)"]
         S --- DB
         E --- DB
-        M --- DB
         K --- DB
     end
 
     P["Prompt text for this one request"]
     API["☁️ Model API"]
+    CLOUD["☁️ Supermemory cloud<br/>(only if you set an API key)"]
 
     DB --> P
+    SM -.->|"opt in"| CLOUD
+    SM --> P
     P --> API
     API -->|"response"| DB
 
     classDef localBox fill:#0F172A,stroke:#2DD4BF,stroke-width:2px,color:#E2E8F0
     classDef cloudBox fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#E2E8F0
-    class DB,S,E,M,K localBox
-    class API,P cloudBox
+    class DB,S,E,K,SM localBox
+    class API,P,CLOUD cloudBox
 ```
 
-The only thing that crosses the network is the prompt for the request you just made. Nothing is retained remotely, because there is nowhere remote to retain it.
+In local mode the only thing that crosses the network is the prompt for the request you just made — nothing is retained remotely, because there is nowhere remote to retain it. In cloud mode your memories are stored on Supermemory's servers as well; that is the trade you make for their tuned extraction models.
 
 **The trade-off, stated honestly:** Atlas is single-tenant and only runs while your machine does. Background reflection and any future scheduled work happen when the process is up, not around the clock. Cloud sync and proactive scheduling are v2 — and the intent is a thin relay for scheduling and notifications, with the data staying local.
 
@@ -114,7 +118,7 @@ flowchart LR
     B --> C["Reflection agent<br/>distills a lesson"]
     C --> D{"worth<br/>remembering?"}
     D -->|"no — trivia, one-off,<br/>self-contained"| X["logged, not stored"]
-    D -->|"yes"| M["embedded into<br/>vec_memories"]
+    D -->|"yes"| M["stored in<br/>Supermemory"]
     M --> S["retrieved by similarity<br/>on a future request"]
     S --> A
 
@@ -178,7 +182,7 @@ Because Atlas runs on your machine, `general` having shell access is the same tr
 | **Planner** | `gpt-5.6-luna` | Runs first. Returns a structured decision: is a plan / memory / skills needed, plus the plan text and skill list. Never answers the user. |
 | **Reflection** | `gpt-5.4-mini` | Runs after, in the background. Decides whether a durable lesson exists and writes it as a categorised memory. |
 
-The server makes two direct model calls of its own — a title generator (`gpt-5.4-nano`) and a query optimizer (`gpt-5.6-luna`). Sub-agents run on `gpt-5.4`. Embeddings are `text-embedding-3-small` (1536-dim). Model IDs are set per-agent in their source files and are trivial to swap.
+The server makes two direct model calls of its own — a title generator (`gpt-5.4-nano`) and a query optimizer (`gpt-5.6-luna`). Sub-agents run on `gpt-5.4`. Embedding and retrieval are handled by Supermemory. Model IDs are set per-agent in their source files and are trivial to swap.
 
 ---
 
@@ -193,7 +197,8 @@ Atlas/
 │       └── src/
 │           ├── index.ts           # Hono app, routes, skill sync on boot
 │           ├── routes/chat.ts     # the pipeline (plan → retrieve → act → reflect)
-│           └── libs/utils.ts      # embed, createMemory, searchMemory, loadSkills, syncSkills
+│           ├── libs/memory.ts     # remember, recall (Supermemory)
+│           └── libs/utils.ts      # skills: list, load, sync
 │
 ├── packages/
 │   ├── agents/                    # 🤖 @repo/agents — agents, tools & integrations
@@ -205,7 +210,7 @@ Atlas/
 │   ├── memory/                    # 🧠 @repo/memory — SQLite + vector persistence (Drizzle)
 │   │   └── src/
 │   │       ├── schema.ts          # sessions · messages · experiences · skills · memories · jobs
-│   │       ├── index.ts           # bun:sqlite + sqlite-vec, PRAGMAs, vec_memories
+│   │       ├── index.ts           # bun:sqlite, PRAGMAs, auto-migrate on boot
 │   │       └── migrations/        # Drizzle Kit migrations
 │   │
 │   └── skills/                    # 📚 SKILL.md playbooks
@@ -222,11 +227,10 @@ Atlas/
 | `messages` | Every user and agent turn, in order |
 | `experiences` | A whole solved task: what was asked, what happened, the reflection drawn from it |
 | `memories` | Distilled reusable lessons, with category, importance and confidence |
-| `vec_memories` | The `sqlite-vec` shadow table — 1536-dim embeddings, keyed to `memories.id` |
 | `skills` | Registry of `SKILL.md` playbooks on disk, synced at boot |
 | `jobs` | Background work (currently reflection runs), for retry and debugging |
 
-`memories` and `vec_memories` are written and deleted as a pair — nothing cascades into a virtual table automatically.
+Memories are **not** in this database. They live in Supermemory, which owns their embedding, storage and retrieval; `experiences` keeps the local record of what each task taught, including the lessons deliberately judged not worth keeping.
 
 ---
 
@@ -241,7 +245,7 @@ Atlas/
 | Agent framework | [`@openai/agents`](https://openai.github.io/openai-agents-js/) |
 | Database | [SQLite](https://www.sqlite.org) via `bun:sqlite` |
 | ORM & migrations | [Drizzle](https://orm.drizzle.team) |
-| Vector search | [`sqlite-vec`](https://github.com/asg017/sqlite-vec) |
+| Memory & retrieval | [Supermemory](https://supermemory.ai) — local or cloud |
 | Web research | [Firecrawl](https://firecrawl.dev) |
 | App integrations | [Pipedream](https://pipedream.com) + [MCP](https://modelcontextprotocol.io) |
 | Schema validation | [Zod](https://zod.dev) |
@@ -298,7 +302,7 @@ Atlas is a working prototype under active development. What's real, and what isn
 ## Roadmap
 
 - [x] Planner → retrieve → act pipeline
-- [x] Semantic memory over `sqlite-vec`
+- [x] Semantic memory (now on Supermemory, local or cloud)
 - [x] Reflection loop with quality gating
 - [x] Skill registry synced from disk
 - [x] Sandboxed sub-agents

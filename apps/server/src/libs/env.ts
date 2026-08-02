@@ -26,6 +26,13 @@ for (const path of LEGACY) {
     console.warn(`env: reading ${path.slice(ROOT.length + 1)} — move these keys to .env at the repo root`);
 }
 
+// A trailing comma or wrapping quotes in a .env line ends up *inside* the
+// value, and the result is a path that silently points somewhere impossible.
+// Cheap to tolerate, expensive to debug.
+if (process.env.DB_FILE_NAME) {
+    process.env.DB_FILE_NAME = process.env.DB_FILE_NAME.trim().replace(/,+$/, "").replace(/^['"]|['"]$/g, "");
+}
+
 // The database is an implementation detail of running Atlas, not something a
 // user should have to name before their first run. Matches the historical
 // default so an existing memory.db is still found.

@@ -1,13 +1,16 @@
 # @repo/memory
 
-Atlas's persistence layer: a [Drizzle ORM](https://orm.drizzle.team) schema over local **SQLite** (via `bun:sqlite`), with [`sqlite-vec`](https://github.com/asg017/sqlite-vec) loaded for semantic search. Everything Atlas knows — conversations, experiences, and memories — lives here, on disk.
+Atlas's persistence layer: a [Drizzle ORM](https://orm.drizzle.team) schema over local **SQLite** (via `bun:sqlite`). Conversations, the record of every task Atlas has worked through, the skill registry and user settings live here, on disk.
+
+Memories do **not**. They live in Supermemory — see `src/supermemory.ts` — which owns their embedding, storage and retrieval.
 
 ## What it exports
 
-`src/index.ts` opens the SQLite connection, loads the `sqlite-vec` extension, sets `WAL` + foreign-key PRAGMAs, ensures the `vec_memories` virtual table exists, and exports:
+`src/index.ts` opens the SQLite connection, sets `WAL` + foreign-key PRAGMAs, applies any pending migrations on boot, and exports:
 
 - **`db`** — the Drizzle client, bound to `bun:sqlite`.
 - **the schema** — all tables re-exported from `src/schema.ts`.
+- **`supermemory`** — the memory adapter (`ingestionMemory`, `searchMemory`, document CRUD), which resolves to a local server, cloud, or an explicit endpoint depending on the environment.
 
 ## Tables
 
@@ -16,22 +19,20 @@ Atlas's persistence layer: a [Drizzle ORM](https://orm.drizzle.team) schema over
 | `sessions` | Conversation threads (title, timestamps). |
 | `messages` | Every user/agent turn, linked to a session. |
 | `experiences` | A whole solved task: task, result, reflection, success flag, confidence. |
-| `memories` | Small reusable facts distilled from experiences, categorized and scored. |
 | `skills` | An index of available `SKILL.md` playbooks (name, description, path, stats). |
 | `jobs` | Background work (e.g. the reflection pipeline), with status and retries. |
+| `settings` | User toggles that persist across restarts. |
 
-## Vector search
+## Memory
 
-Semantic search uses a `vec0` **virtual table**, `vec_memories`, created at startup in `src/index.ts`. It shadows the `memories` table by id and stores one 1536-dimension embedding (`text-embedding-3-small`) per row:
+Memory is not stored in this database. `src/supermemory.ts` wraps the Supermemory client
+and picks a backend from the environment:
 
-```sql
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
-    memory_id INTEGER PRIMARY KEY,
-    embedding FLOAT[1536]
-);
-```
+- nothing set → local server, started on demand, embeddings on your machine
+- `SUPERMEMORY_API_KEY` → cloud
+- `SUPERMEMORY_BASE_URL` → that endpoint, as-is
 
-Because `sqlite-vec` virtual tables are invisible to Drizzle, they're written and queried with raw SQL. The read/write helpers (`createMemory`, `searchMemory`, `deleteMemory`) live in [`apps/server/src/libs/utils.ts`](../../apps/server/src/libs/utils.ts) — a memory insert always writes both `memories` and `vec_memories`, and a delete removes from both.
+The client is built lazily, so a missing key is never a boot failure.
 
 ## Migrations
 

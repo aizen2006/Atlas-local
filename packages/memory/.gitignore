@@ -35,6 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.db
 src/migrations/
 memory.db-shm
+memory.backup.db-shm
+memory.backup.db-wal
 memory.db-wal
 
 # the persona file lives beside the database — same class of personal data

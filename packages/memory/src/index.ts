@@ -1,7 +1,6 @@
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import { Database } from 'bun:sqlite';
-import * as sqliteVec from 'sqlite-vec';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -19,7 +18,6 @@ const dbExisted = existsSync(DB_PATH);
 console.log(`DB: ${DB_PATH} (${dbExisted ? "existing" : "new — will be created"})`);
 
 const sqlite = new Database(DB_PATH);
-sqlite.loadExtension(sqliteVec.getLoadablePath());
 
 sqlite.run(`
 PRAGMA journal_mode = WAL;
@@ -43,19 +41,11 @@ try {
     throw error;
 }
 
-// shadow index for the memories table; memory_id mirrors memories.id.
-// Created after the migrations so it never races the table it shadows.
-sqlite.run(`
-CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
-    memory_id INTEGER PRIMARY KEY,
-    embedding FLOAT[1536] distance_metric=cosine
-);
-`);
-
-
+// Vector search used to live here in a sqlite-vec virtual table alongside a
+// `memories` table. Both are gone: memory now runs on Supermemory, which owns
+// embedding, storage and retrieval. This database keeps only the relational
+// data — sessions, messages, experiences, skills, jobs, settings — which is not
+// what a memory engine is for.
 export * from "./schema";
 
-// the Supermemory-backed memory layer. Exported under a namespace because
-// searchMemory here and the sqlite-vec searchMemory in the server's utils
-// coexist until the migration finishes.
 export * as supermemory from "./supermemory";

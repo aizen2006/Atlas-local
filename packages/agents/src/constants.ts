@@ -5,5 +5,6 @@ export const models = {
     title: "gpt-5.4-nano",
     reflection: "gpt-5.4-mini",
     subagent: "gpt-5.4",
-    embedding: "text-embedding-3-small",
+    // no embedding model here: Supermemory owns embedding now, and picks its own
+    // (on-device by default in local mode)
 } as const;
