@@ -1,7 +1,6 @@
 import { Agent  } from "@openai/agents";
 import { z } from "zod"
 import { models } from "../constants";
-import { getSkills } from "../tools/skills.tools";
 
 
 
@@ -55,70 +54,82 @@ export const planner_agent = new Agent({
     Otherwise set it to 'false'.
 
     ### Skills
-    Set 'resources.skills' to 'true' only when specialized workflows or domain knowledge would improve execution.
+    The available skills are listed in the input, each with a description of what it does
+    and when to use it. Read that list before deciding — you are choosing from it, not
+    guessing whether something suitable might exist.
 
-    If skills are needed:
-    - Call the 'getSkills' tool.
-    - Return ONLY the skills returned by the tool.
-    - Never invent or modify skills.
-    - Load as few skills as possible (prefer 1-3).
+    Set 'resources.skills' to 'true' when a listed skill's description matches what the
+    user is asking for. A skill exists because this kind of request has come up before and
+    a specific procedure was worked out for it; skipping it means redoing that work from
+    scratch and getting a different result each time. If a skill covers the request, use it.
+
+    Set it to 'false' when no listed skill fits, or when the list is empty. Do not stretch
+    a loosely-related skill to fit — a mismatched procedure is worse than none.
+
+    When skills are needed:
+    - Copy the name and description EXACTLY as they appear in the list.
+    - Never invent a skill, and never return one that is not in the list.
+    - Prefer the single best match; 2-3 only if the request genuinely spans them.
 
     If no skills are needed, return an empty array.
 
     ## Examples
 
-    Example 1
+    Example 1 — nothing is needed
 
-    User:
-    "What is SQLite?"
-
-    Output:
+    Request: "What is SQLite?"
+    Available skills: (none relevant)
 
     {
-    "is_plan_needed": false,
-    "is_memory_needed": false,
-    "is_skill_needed": false,
+    "resources": { "plan": false, "memory": false, "skills": false },
     "skills": []
     }
 
     ---
 
-    Example 2
+    Example 2 — a listed skill matches the request
 
-    User:
-    "Help me migrate my Express API to Fastify."
-
-    Action:
-    - Create a plan.
-    - Call 'getSkills'.
-
-    Output:
+    Request: "Draft this Friday's client status update for Acme."
+    Available skills:
+    - weekly-client-status-update: Use when drafting a recurring Friday client-status
+      update. Produces a consistent under-200-word update with shipped items, blockers
+      with owners, next week's focus, and one explicit closing ask.
 
     {
-    "is_plan_needed": true,
-    "plan": "1. Analyze the current Express application.\n2. Replace routing and middleware.\n3. Update plugins and dependencies.\n4. Test the application.\n5. Validate the migration.",
-    "is_memory_needed": false,
-    "is_skill_needed": true,
+    "resources": { "plan": false, "memory": false, "skills": true },
     "skills": [
         {
-        "name": "<returned by tool>",
-        "description": "<returned by tool>"
+        "name": "weekly-client-status-update",
+        "description": "Use when drafting a recurring Friday client-status update. Produces a consistent under-200-word update with shipped items, blockers with owners, next week's focus, and one explicit closing ask."
         }
     ]
+    }
+
+    ---
+
+    Example 3 — multi-step work, no skill fits
+
+    Request: "Help me migrate my Express API to Fastify."
+    Available skills:
+    - writing-email: Writes, rewrites and improves professional emails.
+
+    {
+    "resources": { "plan": true, "memory": false, "skills": false },
+    "plan": "1. Analyze the current Express application.\n2. Replace routing and middleware.\n3. Update plugins and dependencies.\n4. Test the application.\n5. Validate the migration.",
+    "skills": []
     }
 
     ## Final Rules
 
     - Return output that exactly matches the schema.
     - Never answer the user's request.
-    - Never invent skills.
+    - Never invent skills — only return names present in the provided list.
     - Never retrieve memory yourself.
     - Only decide whether memory is needed.
-    - Only call 'getSkills' when necessary.
     `,
     model:models.planner,
-    tools:[
-        getSkills
-    ],
+    // No tools: the skill catalog is supplied directly in the input. Fetching it
+    // through a tool call meant the planner had to decide it wanted skills before
+    // it could see which ones existed, which is why matching skills were missed.
     outputType:plannerOutput
 })

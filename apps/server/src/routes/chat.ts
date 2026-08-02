@@ -5,7 +5,7 @@ import { runAgent , runAgentStream, planner_agent, Atlas, reflection_agent } fro
 import { db, messages, sessions, jobs, experiences } from "@repo/memory";
 import { models } from "@repo/agents";
 import { eq } from "drizzle-orm";
-import { searchMemory, loadSkills, createMemory } from "../libs/utils";
+import { searchMemory, loadSkills, createMemory, listEnabledSkills } from "../libs/utils";
 
 const chat = new Hono();
 
@@ -127,8 +127,22 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
 
     promptVars.query = response.output_text;
 
+    // The planner used to decide whether skills were needed without being told
+    // which skills exist, so it had to guess — and guessed "no" for requests a
+    // registered skill covered exactly. It now chooses from the actual catalog.
+    const catalog = await listEnabledSkills();
+    const plannerInput = `
+    Request:
+    ${response.output_text}
+
+    Available skills:
+    ${catalog.length
+        ? catalog.map(s=>`- ${s.name}: ${s.description ?? "(no description)"}`).join("\n")
+        : "(none registered)"}
+    `;
+
     // planner agent
-    const planner_output = await runAgent(planner_agent,response.output_text);
+    const planner_output = await runAgent(planner_agent,plannerInput);
 
     const pipeline: PipelineSummary = { planned:false, memoriesUsed:0, skills:[] };
 

@@ -2,6 +2,7 @@ import { Agent } from '@openai/agents'
 import { models } from "../constants";
 import { webSearch , webScrape ,agenticSearch } from '../tools/webSearch.tools';
 import { createSubAgents } from '../tools/subagents.tools';
+import { createSkill } from '../tools/skills.tools';
 import { hasFirecrawl } from '../utils/firecrawl';
 
 // Web research needs a Firecrawl key. Without one the tools are left out
@@ -47,6 +48,7 @@ export const Atlas = new Agent({
         - Prefer the simplest tool that solves the task.
         - Do not use a more expensive or complex tool when a lighter tool is sufficient.
         - Use CreateSubAgents to delegate a complex, multi-step, or long-running piece of work to a sub-agent instead of doing it inline — pick the closest subagent_type and write a fully self-contained prompt, since the sub-agent has no memory of this conversation
+        - Use CreateSkill only after finishing a task whose *procedure* is worth repeating — a sequence of steps, a format, or a checklist that would apply to a different request of the same kind. Never for a one-off answer, and never for a fact about the user. Most tasks do not deserve a skill; creating a weak one makes future tasks worse, because the planner loads skills by description and a vague one gets pulled into work it does not fit.
 
         Work style:
         - Think like an executive support partner, not a chatbot.
@@ -73,6 +75,7 @@ export const Atlas = new Agent({
     tools:[
         ...webTools,
         createSubAgents,
+        createSkill,
     ],
     model:models.atlas,
 })
