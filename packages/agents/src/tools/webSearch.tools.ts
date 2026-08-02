@@ -1,6 +1,6 @@
 import { tool ,type Tool} from "@openai/agents"
 import { z } from "zod"
-import { firecrawl } from "../utils/firecrawl"
+import { getFirecrawl } from "../utils/firecrawl"
 
 export const webSearch:Tool = tool({
     name:"WebSearch tool",
@@ -18,7 +18,7 @@ export const webSearch:Tool = tool({
         depth == "advanced"?limit=10:depth == 'normal'?limit=5:limit=3 ;
         if(!sources) return Error("Please enter Source")
         try {
-            const response = await firecrawl.search(query,{
+            const response = await getFirecrawl().search(query,{
                 limit:limit,
                 sources:[sources]
             })
@@ -40,7 +40,7 @@ export const webScrape :Tool = tool({
     }),
     async execute({url}){
         try {
-            const res = await firecrawl.scrape(url);
+            const res = await getFirecrawl().scrape(url);
             return res
         } catch (error) {
             return error
@@ -63,7 +63,7 @@ export const agenticSearch :Tool = tool({
     async execute({prompt,url,model}){
         if(!url){
             try {
-                const res = await firecrawl.agent({
+                const res = await getFirecrawl().agent({
                     prompt:prompt,
                     model
                 });
@@ -73,7 +73,7 @@ export const agenticSearch :Tool = tool({
             }
         }else{
             try {
-                const res = await firecrawl.agent({
+                const res = await getFirecrawl().agent({
                     prompt:prompt,
                     model,
                     urls:url

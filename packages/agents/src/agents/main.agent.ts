@@ -2,6 +2,21 @@ import { Agent } from '@openai/agents'
 import { models } from "../constants";
 import { webSearch , webScrape ,agenticSearch } from '../tools/webSearch.tools';
 import { createSubAgents } from '../tools/subagents.tools';
+import { hasFirecrawl } from '../utils/firecrawl';
+
+// Web research needs a Firecrawl key. Without one the tools are left out
+// entirely rather than registered and failing on call — a tool the model can
+// see is a tool it will try to use, and the instructions below are trimmed to
+// match so it is never told to reach for something that isn't there.
+const webTools = hasFirecrawl ? [webScrape, webSearch, agenticSearch] : [];
+
+const webToolGuidance = hasFirecrawl
+    ? `
+        - Use webSearch for quick web lookup and current facts.
+        - Use webScrape when the user provides a URL and you need the page contents.
+        - Use agenticSearch for complex research, comparisons, or synthesis across multiple sources.`
+    : `
+        - You have no web access in this configuration. Answer from your own knowledge and say plainly when something may be out of date, rather than describing a search you cannot run.`;
 
 // Will add connector feature later on to app multiple apps mcp
 // Update the system prompt accordingly
@@ -28,10 +43,7 @@ export const Atlas = new Agent({
         - Organize tasks, extract key points, and surface what matters most.
         - When useful, present options with a recommendation instead of only raw information.
 
-        Tool usage:
-        - Use webSearch for quick web lookup and current facts.
-        - Use webScrape when the user provides a URL and you need the page contents.
-        - Use agenticSearch for complex research, comparisons, or synthesis across multiple sources.
+        Tool usage:${webToolGuidance}
         - Prefer the simplest tool that solves the task.
         - Do not use a more expensive or complex tool when a lighter tool is sufficient.
         - Use CreateSubAgents to delegate a complex, multi-step, or long-running piece of work to a sub-agent instead of doing it inline — pick the closest subagent_type and write a fully self-contained prompt, since the sub-agent has no memory of this conversation
@@ -59,9 +71,7 @@ export const Atlas = new Agent({
         - Protect the user's time.
         `,
     tools:[
-        webScrape,
-        webSearch,
-        agenticSearch,
+        ...webTools,
         createSubAgents,
     ],
     model:models.atlas,

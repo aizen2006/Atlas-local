@@ -1,3 +1,6 @@
+// must come first — see libs/env.ts. The launcher starts at the repo root while
+// `bun run dev` starts in apps/server, and both need the same config.
+import "./libs/env";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { app } from "./index";

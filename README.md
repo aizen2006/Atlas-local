@@ -244,12 +244,7 @@ Atlas/
 
 ## Getting started
 
-<details>
-<summary><b>Prerequisites & installation</b></summary>
-
-<br/>
-
-You'll need [Bun](https://bun.sh) 1.3+ and an [OpenAI API key](https://platform.openai.com). Firecrawl and Pipedream keys are optional — without them, web research and Gmail/Calendar tools are unavailable, but the core loop runs.
+You'll need [Bun](https://bun.sh) 1.3+ and an [OpenAI API key](https://platform.openai.com).
 
 ```bash
 git clone https://github.com/aizen2006/Atlas.git
@@ -257,64 +252,22 @@ cd Atlas
 bun install
 ```
 
-</details>
-
-<details>
-<summary><b>Environment variables</b></summary>
-
-<br/>
-
-Config is loaded from `process.cwd()`, and the server runs from `apps/server` — so create **`apps/server/.env`** with everything:
+Create `.env` in the repo root with a single line:
 
 ```bash
-# OpenAI — note BOTH are needed
-OPENAI=sk-...                  # read directly by apps/server/src/libs/openai.ts
-OPENAI_API_KEY=sk-...          # read by the @openai/agents SDK
-
-# Database — relative to apps/server
-DB_FILE_NAME=../../packages/memory/src/memory.db
-
-# Optional — web research
-FIRECRAWL_API_KEY=fc-...
-
-# Optional — Gmail & Calendar over MCP
-PIPEDREAM_CLIENT_ID=...
-PIPEDREAM_CLIENT_SECRET=...
-PIPEDREAM_PROJECT_ID=...
-PIPEDREAM_ENVIRONMENT=development
-PIPEDREAM_USER_ID=...
+OPENAI_API_KEY=sk-...
 ```
 
-> **Heads up:** these guards run at *import* time, so a missing key fails at startup, not on the first request. `DB_FILE_NAME` is a relative path — running from the wrong directory silently creates a fresh, empty database rather than erroring.
-
-</details>
-
-<details>
-<summary><b>Database setup & running</b></summary>
-
-<br/>
+Then:
 
 ```bash
-# apply migrations
-cd packages/memory
-bunx drizzle-kit migrate
-
-# start the server (skills sync automatically on boot)
-cd ../../apps/server
-bun run dev
+bun run atlas
 ```
 
-Then talk to it:
+That builds the web UI on first run, starts the server, and opens your browser. The
+database schema is created automatically — there is no migration step.
 
-```bash
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"query":"What is on my calendar tomorrow?"}'
-```
-
-The response is `{ "sessionId": 1, "response": "..." }`. Pass that `sessionId` back on the next request to continue the conversation.
-
-</details>
+Full configuration, optional keys, and troubleshooting: **[docs/setup.md](docs/setup.md)**.
 
 ---
 

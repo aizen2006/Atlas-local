@@ -1,3 +1,6 @@
+// must come first — loads .env and applies defaults before any module that
+// reads process.env at import time (@repo/memory, the OpenAI client)
+import './libs/env'
 import { Hono } from 'hono'
 import { join } from 'node:path'
 import chat  from './routes/chat'
