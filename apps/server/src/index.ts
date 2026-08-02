@@ -8,6 +8,7 @@ import sessions from './routes/sessions'
 import skills from './routes/skills'
 import settings from './routes/settings'
 import { soulStatus } from './libs/soul'
+import { memoryMode } from './libs/memory'
 import { syncSkills } from './libs/utils'
 
 export const app = new Hono()
@@ -26,6 +27,10 @@ void syncSkills()
 
 // the persona rides on every request, so its size is worth seeing at a glance
 console.log(soulStatus());
+
+// which memory backend is live — "cloud" here means memories leave the machine,
+// so it should never be a surprise
+console.log(`Memory: ${memoryMode}`);
 
 // routes
 

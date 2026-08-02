@@ -13,6 +13,7 @@ const CANONICAL = join(ROOT, ".env");
 const LEGACY = [
     join(ROOT, "apps", "server", ".env"),
     join(ROOT, "packages", "agents", ".env"),
+    join(ROOT, "packages", "memory", ".env"),
 ];
 
 if (existsSync(CANONICAL)) config({ path: CANONICAL, quiet: true });

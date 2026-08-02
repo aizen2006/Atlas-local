@@ -5,7 +5,8 @@ import { runAgent , runAgentStream, planner_agent, createAtlas, reflection_agent
 import { db, messages, sessions, jobs, experiences } from "@repo/memory";
 import { models } from "@repo/agents";
 import { eq } from "drizzle-orm";
-import { searchMemory, loadSkills, createMemory, listEnabledSkills } from "../libs/utils";
+import { loadSkills, listEnabledSkills } from "../libs/utils";
+import { recall, remember } from "../libs/memory";
 import { loadPersona } from "../libs/soul";
 import { subagentsEnabled } from "../libs/settings";
 
@@ -158,9 +159,9 @@ async function prepareTurn(query:string,sessionId?:number):Promise<{
     // Memory layer
     if(planner_output?.resources.memory){
         // later make the number of results returned dynamic
-        const memoryHits = await searchMemory(query,3);
+        const memoryHits = await recall(query,3);
         if(memoryHits.length){
-            promptVars.memory = memoryHits.map(m=>`- ${m.content}`).join("\n");
+            promptVars.memory = memoryHits.map(m=>`- ${m}`).join("\n");
             pipeline.memoriesUsed = memoryHits.length;
         }
     }
@@ -282,16 +283,20 @@ async function runReflectionPipeline(sessionId:number,task:string,result:string)
                 .set({reflection:reflection_output.text})
                 .where(eq(experiences.id,experience.id));
 
-            // Create's Memory — only when the reflection agent judged the lesson durable.
-            // searchMemory returns the k nearest neighbours regardless of quality, so
-            // storing every interaction would let trivia crowd out the real lessons.
+            // Store the lesson — only when the reflection agent judged it durable.
+            // Supermemory extracts facts from whatever it is given and has no notion
+            // of "this one is junk", so this gate is what keeps accumulated trivia
+            // from crowding out real lessons at retrieval time.
             if(reflection_output.worthRemembering){
-                await createMemory({
-                    content:reflection_output.text,
+                await remember({
+                    task,
+                    result,
+                    summary:reflection_output.text,
                     category:reflection_output.category,
                     importance:reflection_output.importance,
                     confidence:reflection_output.confidence,
-                    sourceExperienceId:experience.id
+                    experienceId:experience.id,
+                    sessionId
                 });
             }
         }
